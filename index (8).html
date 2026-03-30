@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Pact — Zahin & Taskin</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='11' cy='16' r='7' fill='none' stroke='%23639922' stroke-width='2.5'/%3E%3Ccircle cx='21' cy='16' r='7' fill='none' stroke='%23639922' stroke-width='2.5'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink: #1a1a1a;
+      --muted: #555;
+      --faint: #999;
+      --surface: #f5f5f3;
+      --card: #ffffff;
+      --border: rgba(0,0,0,0.1);
+      --border-mid: rgba(0,0,0,0.2);
+      --bg: #f0ede8;
+      --mono: 'DM Mono', monospace;
+      --serif: 'Fraunces', Georgia, serif;
+      --radius-lg: 14px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #e8e6e1;
+        --muted: #aaa;
+        --faint: #666;
+        --surface: #1e1e1c;
+        --card: #252523;
+        --border: rgba(255,255,255,0.08);
+        --border-mid: rgba(255,255,255,0.18);
+        --bg: #141412;
+      }
+    }
+
+    html, body { min-height: 100vh; background: var(--bg); font-family: var(--mono); color: var(--ink); }
+
+    .root { max-width: 660px; margin: 0 auto; padding: 2.5rem 1.25rem 3rem; }
+
+    .header { text-align: center; margin-bottom: 2.25rem; }
+    .title { font-family: var(--serif); font-size: 32px; font-weight: 300; font-style: italic; color: var(--ink); letter-spacing: -0.5px; }
+    .subtitle { font-size: 11px; color: var(--faint); margin-top: 5px; letter-spacing: 1.5px; text-transform: uppercase; }
+
+    .sync-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #EF9F27; margin-left: 8px; vertical-align: middle; transition: background 0.4s; }
+    .sync-dot.alive   { background: #639922; }
+    .sync-dot.syncing { background: #EF9F27; }
+    .sync-dot.error   { background: #E24B4A; }
+
+    .streak-banner { background: var(--card); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .streak-num { font-size: 40px; font-weight: 500; color: var(--ink); line-height: 1; }
+    .streak-label { font-size: 11px; color: var(--faint); letter-spacing: 0.5px; margin-top: 3px; }
+    .streak-right { text-align: right; }
+    .streak-status { font-size: 11px; padding: 4px 12px; border-radius: 20px; display: inline-block; }
+    .streak-status.alive   { background: #EAF3DE; color: #3B6D11; }
+    .streak-status.pending { background: #FAEEDA; color: #854F0B; }
+
+    @media (prefers-color-scheme: dark) {
+      .streak-status.alive   { background: #1a2e10; color: #97C459; }
+      .streak-status.pending { background: #2e2010; color: #EF9F27; }
+    }
+
+    .date-strip { font-size: 11px; color: var(--faint); letter-spacing: 0.5px; text-align: center; margin-bottom: 1.25rem; }
+
+    .users-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.5rem; }
+    @media (max-width: 440px) { .users-grid { grid-template-columns: 1fr; } }
+
+    .user-card { background: var(--card); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; transition: border-color 0.3s; }
+    .user-card.done { border-color: #639922; }
+    @media (prefers-color-scheme: dark) { .user-card.done { border-color: #3B6D11; } }
+
+    .user-name { font-size: 13px; font-weight: 500; color: var(--ink); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .done-badge { font-size: 10px; color: #3B6D11; background: #EAF3DE; padding: 2px 8px; border-radius: 20px; display: none; }
+    @media (prefers-color-scheme: dark) { .done-badge { background: #1a2e10; color: #97C459; } }
+
+    .habit-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 0.5px solid var(--border); }
+    .habit-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .habit-name { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+
+    .check-btn { width: 30px; height: 30px; border-radius: 7px; border: 0.5px solid var(--border-mid); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+    .check-btn:hover { background: var(--surface); }
+    .check-btn.checked { background: #639922; border-color: #639922; }
+    .check-btn svg { display: none; }
+    .check-btn.checked svg { display: block; }
+
+    .history-section { margin-top: 1.75rem; }
+    .section-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--faint); margin-bottom: 10px; }
+
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-day { aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--faint); border: 0.5px solid var(--border); }
+    .cal-day.full    { background: #639922; border-color: #639922; color: #EAF3DE; }
+    .cal-day.partial { background: #EF9F27; border-color: #EF9F27; color: #2e2010; }
+    .cal-day.missed  { background: #E24B4A; border-color: #E24B4A; color: #FCEBEB; }
+    .cal-day.empty   { border-color: transparent; background: transparent; }
+    .cal-day.today   { box-shadow: 0 0 0 1.5px var(--border-mid); }
+
+    .legend { display: flex; gap: 14px; margin-top: 8px; justify-content: flex-end; }
+    .legend-item { font-size: 10px; color: var(--faint); display: flex; align-items: center; gap: 4px; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+    .note { font-size: 11px; color: var(--faint); text-align: center; margin-top: 1.5rem; line-height: 1.7; }
+
+    .bottom-row { display: flex; justify-content: center; margin-top: 1.25rem; }
+    .ghost-btn { font-family: var(--mono); font-size: 11px; color: var(--faint); background: transparent; border: 0.5px solid var(--border); padding: 6px 16px; border-radius: 20px; cursor: pointer; transition: all 0.15s; }
+    .ghost-btn:hover { color: var(--muted); border-color: var(--border-mid); }
+
+    .loading-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; z-index: 99; }
+    .loading-screen .l-title { font-family: var(--serif); font-size: 28px; font-weight: 300; font-style: italic; color: var(--ink); }
+    .loading-screen .l-sub { font-size: 11px; color: var(--faint); letter-spacing: 1px; }
+    .loading-screen.hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="loading-screen" id="loading-screen">
+  <div class="l-title">The Pact</div>
+  <div class="l-sub">connecting...</div>
+</div>
+
+<div class="root">
+  <div class="header">
+    <div class="title">The Pact <span class="sync-dot syncing" id="sync-dot"></span></div>
+    <div class="subtitle">Zahin &amp; Taskin — 2.5 years</div>
+  </div>
+
+  <div class="streak-banner">
+    <div>
+      <div class="streak-num" id="streak-count">0</div>
+      <div class="streak-label">day streak</div>
+    </div>
+    <div class="streak-right">
+      <div class="streak-status pending" id="streak-status">connecting</div>
+      <div class="streak-label" style="margin-top:6px" id="days-remaining">— days to graduation</div>
+    </div>
+  </div>
+
+  <div class="date-strip" id="date-strip">—</div>
+
+  <div class="users-grid">
+    <div class="user-card" id="card-zahin">
+      <div class="user-name">Zahin <span class="done-badge" id="badge-zahin">done</span></div>
+      <div class="habit-row">
+        <span class="habit-name">📖 Reading</span>
+        <button class="check-btn" id="z-read" onclick="toggle('zahin','read')">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><polyline points="2,6.5 5.5,10 11,3" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="habit-row">
+        <span class="habit-name">🏃 Exercise</span>
+        <button class="check-btn" id="z-exercise" onclick="toggle('zahin','exercise')">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><polyline points="2,6.5 5.5,10 11,3" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="user-card" id="card-taskin">
+      <div class="user-name">Taskin <span class="done-badge" id="badge-taskin">done</span></div>
+      <div class="habit-row">
+        <span class="habit-name">📖 Reading</span>
+        <button class="check-btn" id="t-read" onclick="toggle('taskin','read')">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><polyline points="2,6.5 5.5,10 11,3" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="habit-row">
+        <span class="habit-name">🏃 Exercise</span>
+        <button class="check-btn" id="t-exercise" onclick="toggle('taskin','exercise')">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><polyline points="2,6.5 5.5,10 11,3" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="history-section">
+    <div class="section-label">Last 28 days</div>
+    <div class="calendar-grid" id="cal-grid"></div>
+    <div class="legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#639922"></span>both done</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#EF9F27"></span>partial</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#E24B4A"></span>missed</span>
+    </div>
+  </div>
+
+  <div class="note" id="pact-note">connecting to the pact...</div>
+
+  <div class="bottom-row">
+    <button class="ghost-btn" onclick="confirmReset()">reset all data</button>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://wgdlxppvbwyqbvjzxpko.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndnZGx4cHB2Ynd5cWJ2anp4cGtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTk2MzUsImV4cCI6MjA5MDQ3NTYzNX0.07duHFrGdvAEhcjRin-VUxZ5fwL41o9YDJJocdbrLl4';
+  const GRAD_DATE = new Date('2027-09-30');
+
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let state = null;
+  let isSaving = false;
+
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function freshState() {
+    return {
+      streak: 0,
+      lastFull: '',
+      todayKey: todayKey(),
+      history: {},
+      today: {
+        zahin:  { read: false, exercise: false },
+        taskin: { read: false, exercise: false }
+      }
+    };
+  }
+
+  function maybeRollover(s) {
+    const tk = todayKey();
+    if (s.todayKey && s.todayKey !== tk) {
+      const full    = isFullDay(s.today);
+      const partial = partialDone(s.today);
+      s.history[s.todayKey] = full ? 'full' : partial ? 'partial' : 'missed';
+      s.streak  = full ? (s.streak || 0) + 1 : 0;
+      s.today   = { zahin: { read: false, exercise: false }, taskin: { read: false, exercise: false } };
+      s.todayKey = tk;
+    } else if (!s.todayKey) {
+      s.todayKey = tk;
+    }
+    return s;
+  }
+
+  function isFullDay(t)     { return t.zahin.read && t.zahin.exercise && t.taskin.read && t.taskin.exercise; }
+  function partialDone(t)   { return t.zahin.read || t.zahin.exercise || t.taskin.read || t.taskin.exercise; }
+  function personDone(p, t) { return t[p].read && t[p].exercise; }
+
+  function setSyncDot(status) {
+    document.getElementById('sync-dot').className = 'sync-dot ' + status;
+  }
+
+  async function loadFromDB() {
+    const { data, error } = await db.from('pact').select('data').eq('id', 'state').single();
+    if (error || !data) return freshState();
+    return maybeRollover(data.data);
+  }
+
+  async function saveToDB(s) {
+    if (isSaving) return;
+    isSaving = true;
+    setSyncDot('syncing');
+    const { error } = await db.from('pact').upsert({ id: 'state', data: s, updated_at: new Date().toISOString() });
+    isSaving = false;
+    setSyncDot(error ? 'error' : 'alive');
+    if (error) console.error('save error:', error);
+  }
+
+  function render(s) {
+    const t = s.today;
+
+    document.getElementById('date-strip').textContent =
+      new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    const daysLeft = Math.max(0, Math.round((GRAD_DATE - new Date()) / 86400000));
+    document.getElementById('days-remaining').textContent = `${daysLeft} days to graduation`;
+
+    ['zahin', 'taskin'].forEach(p => {
+      ['read', 'exercise'].forEach(h => {
+        document.getElementById(`${p[0]}-${h}`).classList.toggle('checked', !!t[p][h]);
+      });
+      const done = personDone(p, t);
+      document.getElementById(`badge-${p}`).style.display = done ? 'inline-block' : 'none';
+      document.getElementById(`card-${p}`).classList.toggle('done', done);
+    });
+
+    const full    = isFullDay(t);
+    const partial = partialDone(t);
+    const displayStreak = full ? (s.streak || 0) + 1 : (s.streak || 0);
+    document.getElementById('streak-count').textContent = displayStreak;
+
+    const ss = document.getElementById('streak-status');
+    if (full)         { ss.className = 'streak-status alive';   ss.textContent = 'today complete'; }
+    else if (partial) { ss.className = 'streak-status pending'; ss.textContent = 'in progress'; }
+    else              { ss.className = 'streak-status pending'; ss.textContent = 'today pending'; }
+
+    const zDone = personDone('zahin', t), tDone = personDone('taskin', t);
+    let note = 'both must check in to keep the streak alive.';
+    if (full)              note = 'today is done. see you tomorrow.';
+    else if (zDone && !tDone) note = 'zahin is done — waiting on taskin.';
+    else if (tDone && !zDone) note = 'taskin is done — waiting on zahin.';
+    document.getElementById('pact-note').textContent = note;
+
+    renderCal(s);
+  }
+
+  function renderCal(s) {
+    const grid = document.getElementById('cal-grid');
+    grid.innerHTML = '';
+    const tk   = todayKey();
+    const days = [];
+    const base = new Date();
+    for (let i = 27; i >= 0; i--) {
+      const d = new Date(base);
+      d.setDate(base.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      days.push({ key, num: d.getDate(), isToday: key === tk });
+    }
+    const startDow = new Date(days[0].key).getDay();
+    for (let i = 0; i < startDow; i++) {
+      const e = document.createElement('div'); e.className = 'cal-day empty'; grid.appendChild(e);
+    }
+    days.forEach(({ key, num, isToday }) => {
+      const el = document.createElement('div');
+      el.className = 'cal-day';
+      el.textContent = num;
+      if (isToday) { el.classList.add('today'); }
+      else {
+        const h = s.history[key];
+        if (h === 'full') el.classList.add('full');
+        else if (h === 'partial') el.classList.add('partial');
+        else if (h === 'missed')  el.classList.add('missed');
+      }
+      grid.appendChild(el);
+    });
+  }
+
+  async function toggle(person, habit) {
+    if (!state) return;
+    state.today[person][habit] = !state.today[person][habit];
+    render(state);
+    await saveToDB(state);
+  }
+
+  async function confirmReset() {
+    if (confirm('Reset all data? The streak and history will be cleared.')) {
+      state = freshState();
+      render(state);
+      await saveToDB(state);
+    }
+  }
+
+  function subscribeRealtime() {
+    db.channel('pact-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pact', filter: 'id=eq.state' },
+        payload => {
+          if (payload.new && payload.new.data) {
+            state = maybeRollover(payload.new.data);
+            render(state);
+            setSyncDot('alive');
+          }
+        }
+      )
+      .subscribe();
+  }
+
+  async function init() {
+    state = await loadFromDB();
+    const needsSave = !state.todayKey || state.todayKey !== todayKey();
+    if (needsSave) await saveToDB(state);
+    render(state);
+    setSyncDot('alive');
+    document.getElementById('loading-screen').classList.add('hidden');
+    subscribeRealtime();
+  }
+
+  init();
+</script>
+</body>
+</html>
