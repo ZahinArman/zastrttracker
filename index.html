@@ -112,6 +112,73 @@
     .loading-screen .l-title { font-family: var(--serif); font-size: 28px; font-weight: 300; font-style: italic; color: var(--ink); }
     .loading-screen .l-sub { font-size: 11px; color: var(--faint); letter-spacing: 1px; }
     .loading-screen.hidden { display: none; }
+
+    .cal-day.full, .cal-day.partial, .cal-day.missed { cursor: pointer; }
+    .cal-day.full:hover, .cal-day.partial:hover, .cal-day.missed:hover { opacity: 0.8; transform: scale(1.1); transition: all 0.1s; }
+
+    .day-popup-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.2);
+      display: flex; align-items: center; justify-content: center;
+      animation: fadeOv 0.15s ease both;
+    }
+    @keyframes fadeOv { from { opacity: 0; } to { opacity: 1; } }
+
+    .day-popup {
+      background: var(--card);
+      border: 0.5px solid var(--border-mid);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      width: min(320px, 90vw);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.14);
+      animation: popIn 0.2s cubic-bezier(0.34,1.5,0.64,1) both;
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.9) translateY(10px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .popup-date   { font-size: 10px; color: var(--faint); letter-spacing: 0.5px; margin-bottom: 3px; }
+    .popup-head   { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .popup-title  { font-size: 15px; font-weight: 500; color: var(--ink); }
+    .popup-badge  { font-size: 10px; padding: 3px 10px; border-radius: 20px; }
+    .popup-badge.full    { background: #EAF3DE; color: #3B6D11; }
+    .popup-badge.partial { background: #FAEEDA; color: #854F0B; }
+    .popup-badge.missed  { background: #FCEBEB; color: #A32D2D; }
+    @media (prefers-color-scheme: dark) {
+      .popup-badge.full    { background: #1a2e10; color: #97C459; }
+      .popup-badge.partial { background: #2e2010; color: #EF9F27; }
+      .popup-badge.missed  { background: #2e1010; color: #F09595; }
+    }
+
+    .popup-rule { height: 0.5px; background: var(--border); margin-bottom: 1rem; }
+
+    .popup-person       { margin-bottom: 12px; }
+    .popup-person:last-child { margin-bottom: 0; }
+    .popup-person-name  { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); margin-bottom: 7px; }
+    .popup-habits       { display: flex; gap: 6px; flex-wrap: wrap; }
+    .popup-pill {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; padding: 4px 10px; border-radius: 20px;
+      border: 0.5px solid var(--border); color: var(--faint);
+    }
+    .popup-pill.done { background: #EAF3DE; border-color: #639922; color: #3B6D11; }
+    @media (prefers-color-scheme: dark) {
+      .popup-pill.done { background: #1a2e10; border-color: #3B6D11; color: #97C459; }
+    }
+    .pill-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border-mid); flex-shrink: 0; }
+    .popup-pill.done .pill-dot { background: #639922; }
+    @media (prefers-color-scheme: dark) { .popup-pill.done .pill-dot { background: #97C459; } }
+
+    .popup-note { font-size: 11px; color: var(--faint); margin-top: 12px; padding-top: 10px; border-top: 0.5px solid var(--border); line-height: 1.6; }
+
+    .popup-close {
+      display: block; width: 100%; margin-top: 1rem;
+      font-family: var(--mono); font-size: 11px; color: var(--faint);
+      background: transparent; border: 0.5px solid var(--border);
+      padding: 6px; border-radius: 8px; cursor: pointer; transition: all 0.15s;
+    }
+    .popup-close:hover { color: var(--muted); border-color: var(--border-mid); }
   </style>
 </head>
 <body>
@@ -191,6 +258,33 @@
   </div>
 </div>
 
+<div id="day-popup-overlay" class="day-popup-overlay" style="display:none" onclick="closePopup(event)">
+  <div class="day-popup" id="day-popup">
+    <div class="popup-date" id="popup-date">—</div>
+    <div class="popup-head">
+      <div class="popup-title" id="popup-title">—</div>
+      <div class="popup-badge" id="popup-badge">—</div>
+    </div>
+    <div class="popup-rule"></div>
+    <div class="popup-person">
+      <div class="popup-person-name">Zahin</div>
+      <div class="popup-habits">
+        <div class="popup-pill" id="pp-z-read"><span class="pill-dot"></span>📖 reading</div>
+        <div class="popup-pill" id="pp-z-exercise"><span class="pill-dot"></span>🏃 exercise</div>
+      </div>
+    </div>
+    <div class="popup-person">
+      <div class="popup-person-name">Taskin</div>
+      <div class="popup-habits">
+        <div class="popup-pill" id="pp-t-read"><span class="pill-dot"></span>📖 reading</div>
+        <div class="popup-pill" id="pp-t-exercise"><span class="pill-dot"></span>🏃 exercise</div>
+      </div>
+    </div>
+    <div class="popup-note" id="popup-note"></div>
+    <button class="popup-close" onclick="closePopup()">close</button>
+  </div>
+</div>
+
 <script>
   const SUPABASE_URL = 'https://wgdlxppvbwyqbvjzxpko.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndnZGx4cHB2Ynd5cWJ2anp4cGtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTk2MzUsImV4cCI6MjA5MDQ3NTYzNX0.07duHFrGdvAEhcjRin-VUxZ5fwL41o9YDJJocdbrLl4';
@@ -224,7 +318,12 @@
     if (s.todayKey && s.todayKey !== tk) {
       const full    = isFullDay(s.today);
       const partial = partialDone(s.today);
-      s.history[s.todayKey] = full ? 'full' : partial ? 'partial' : 'missed';
+      // Store detailed snapshot so popup can show who did what
+      s.history[s.todayKey] = {
+        status: full ? 'full' : partial ? 'partial' : 'missed',
+        zahin:  { read: !!s.today.zahin.read, exercise: !!s.today.zahin.exercise },
+        taskin: { read: !!s.today.taskin.read, exercise: !!s.today.taskin.exercise }
+      };
       s.streak  = full ? (s.streak || 0) + 1 : 0;
       s.today   = { zahin: { read: false, exercise: false }, taskin: { read: false, exercise: false } };
       s.todayKey = tk;
@@ -296,6 +395,11 @@
     renderCal(s);
   }
 
+  function getStatus(h) {
+    if (!h) return null;
+    return typeof h === 'string' ? h : h.status;
+  }
+
   function renderCal(s) {
     const grid = document.getElementById('cal-grid');
     grid.innerHTML = '';
@@ -316,15 +420,64 @@
       const el = document.createElement('div');
       el.className = 'cal-day';
       el.textContent = num;
-      if (isToday) { el.classList.add('today'); }
-      else {
+      if (isToday) {
+        el.classList.add('today');
+      } else {
         const h = s.history[key];
-        if (h === 'full') el.classList.add('full');
-        else if (h === 'partial') el.classList.add('partial');
-        else if (h === 'missed')  el.classList.add('missed');
+        const status = getStatus(h);
+        if (status === 'full')    el.classList.add('full');
+        else if (status === 'partial') el.classList.add('partial');
+        else if (status === 'missed')  el.classList.add('missed');
+        if (status) {
+          el.addEventListener('click', () => openPopup(key, h, status));
+        }
       }
       grid.appendChild(el);
     });
+  }
+
+  function openPopup(key, h, status) {
+    const d = new Date(key + 'T00:00:00');
+    const dateStr = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+    document.getElementById('popup-date').textContent = dateStr;
+
+    const titles = { full: 'Both completed', partial: 'Partially done', missed: 'Nothing logged' };
+    const labels  = { full: 'complete', partial: 'partial', missed: 'missed' };
+    document.getElementById('popup-title').textContent = titles[status];
+    const badge = document.getElementById('popup-badge');
+    badge.textContent = labels[status];
+    badge.className = 'popup-badge ' + status;
+
+    // Habit breakdown — handle both old string history and new detailed object
+    const zahin  = typeof h === 'object' && h.zahin  ? h.zahin  : { read: status === 'full', exercise: status === 'full' };
+    const taskin = typeof h === 'object' && h.taskin ? h.taskin : { read: status === 'full', exercise: status === 'full' };
+
+    document.getElementById('pp-z-read').className     = 'popup-pill' + (zahin.read      ? ' done' : '');
+    document.getElementById('pp-z-exercise').className = 'popup-pill' + (zahin.exercise  ? ' done' : '');
+    document.getElementById('pp-t-read').className     = 'popup-pill' + (taskin.read     ? ' done' : '');
+    document.getElementById('pp-t-exercise').className = 'popup-pill' + (taskin.exercise ? ' done' : '');
+
+    // Contextual note
+    let note = '';
+    if (status === 'full') {
+      note = 'perfect day. both habits done by both people. streak held.';
+    } else if (status === 'missed') {
+      note = 'nothing was logged this day. streak was broken.';
+    } else {
+      const parts = [];
+      if (!zahin.read || !zahin.exercise)   parts.push(`zahin missed ${[!zahin.read && 'reading', !zahin.exercise && 'exercise'].filter(Boolean).join(' & ')}`);
+      if (!taskin.read || !taskin.exercise) parts.push(`taskin missed ${[!taskin.read && 'reading', !taskin.exercise && 'exercise'].filter(Boolean).join(' & ')}`);
+      note = parts.join('. ') + '. streak was broken.';
+    }
+    document.getElementById('popup-note').textContent = note;
+
+    document.getElementById('day-popup-overlay').style.display = 'flex';
+  }
+
+  function closePopup(e) {
+    if (e && e.target !== document.getElementById('day-popup-overlay') && !e.target.classList.contains('popup-close')) return;
+    document.getElementById('day-popup-overlay').style.display = 'none';
   }
 
   async function toggle(person, habit) {
